@@ -1,0 +1,8 @@
+pygetwindow>=0.0.9
+pynput>=1.7.6
+watchdog>=2.1.9
+browser-history>=0.3.2
+psutil>=5.9.0
+pywin32>=303
+pandas>=1.4.2
+matplotlib>=3.5.2 
