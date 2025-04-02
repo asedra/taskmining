@@ -39,7 +39,9 @@ class ActivityLogger:
             window_title TEXT,  -- Title of the active window
             application TEXT,   -- Name of the application process
             event_type TEXT,    -- e.g., 'keyboard', 'mouse_click', 'window_change'
-            event_details TEXT  -- e.g., key pressed, button clicked, new window title
+            event_details TEXT, -- e.g., key pressed, button clicked, new window title
+            screenshot_path TEXT, -- Path to the screenshot image
+            screenshot_filename TEXT -- Name of the screenshot file
         )
         """)
         
@@ -74,7 +76,7 @@ class ActivityLogger:
         conn.commit()
         conn.close()
         
-    def log_user_event(self, window_title, application, event_type, event_details=""):
+    def log_user_event(self, window_title, application, event_type, event_details="", screenshot_path=None, screenshot_filename=None):
         """
         Kullanıcı aktivitesini kaydeder
         
@@ -83,6 +85,8 @@ class ActivityLogger:
             application: Uygulama adı
             event_type: Olay türü (keyboard, mouse_click, window_change, vb.)
             event_details: Olay detayları
+            screenshot_path: Ekran görüntüsü dosya yolu
+            screenshot_filename: Ekran görüntüsü dosya adı
         """
         conn = self._connect_db()
         cursor = conn.cursor()
@@ -90,8 +94,8 @@ class ActivityLogger:
         timestamp = get_current_timestamp()
         
         cursor.execute(
-            "INSERT INTO user_events VALUES (?, ?, ?, ?, ?)",
-            (timestamp, window_title, application, event_type, event_details)
+            "INSERT INTO user_events VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (timestamp, window_title, application, event_type, event_details, screenshot_path, screenshot_filename)
         )
         
         conn.commit()
@@ -352,6 +356,94 @@ class ActivityLogger:
             query += " WHERE " + " AND ".join(where_clauses)
             
         query += f" ORDER BY timestamp DESC LIMIT {limit}"
+        
+        cursor.execute(query, params)
+        result = cursor.fetchall()
+        conn.close()
+        
+        return result
+
+    def get_events_with_screenshots(self, limit=10):
+        """
+        Ekran görüntüsü olan olayları ve detaylarını getirir
+        
+        Args:
+            limit: Maksimum kayıt sayısı
+            
+        Returns:
+            list: Olay ve ekran görüntüsü detayları
+        """
+        conn = self._connect_db()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT 
+            timestamp,
+            window_title,
+            application,
+            event_type,
+            event_details,
+            screenshot_path
+        FROM user_events
+        WHERE screenshot_path IS NOT NULL
+        ORDER BY timestamp DESC
+        LIMIT ?
+        """
+        
+        cursor.execute(query, (limit,))
+        result = cursor.fetchall()
+        conn.close()
+        
+        return result
+
+    def get_event_screenshot_pairs(self, event_type=None, start_time=None, end_time=None, limit=10):
+        """
+        Belirli bir olay türü için ekran görüntüsü ve olay eşleşmelerini getirir
+        
+        Args:
+            event_type: Olay türü (keyboard, mouse_click)
+            start_time: Başlangıç zamanı
+            end_time: Bitiş zamanı
+            limit: Maksimum kayıt sayısı
+            
+        Returns:
+            list: Olay ve ekran görüntüsü eşleşmeleri
+        """
+        conn = self._connect_db()
+        cursor = conn.cursor()
+        
+        query = """
+        SELECT 
+            timestamp,
+            window_title,
+            application,
+            event_type,
+            event_details,
+            screenshot_path
+        FROM user_events
+        WHERE screenshot_path IS NOT NULL
+        """
+        
+        params = []
+        where_clauses = []
+        
+        if event_type:
+            where_clauses.append("event_type = ?")
+            params.append(event_type)
+            
+        if start_time:
+            where_clauses.append("timestamp >= ?")
+            params.append(start_time)
+            
+        if end_time:
+            where_clauses.append("timestamp <= ?")
+            params.append(end_time)
+            
+        if where_clauses:
+            query += " AND " + " AND ".join(where_clauses)
+            
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
         
         cursor.execute(query, params)
         result = cursor.fetchall()

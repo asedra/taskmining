@@ -10,6 +10,8 @@ import win32gui
 import win32process
 import psutil
 import datetime
+import os
+from PIL import ImageGrab
 from utils.time_utils import get_current_timestamp
 
 class EventListener:
@@ -25,6 +27,8 @@ class EventListener:
         self.active_window = {"title": "", "application": "", "last_update": None}
         self.last_input_time = None
         self.lock = threading.Lock()
+        self.screenshot_dir = "data/screenshots"
+        os.makedirs(self.screenshot_dir, exist_ok=True)
         
     def _get_active_window_info(self):
         """
@@ -83,57 +87,115 @@ class EventListener:
                 "last_update": datetime.datetime.now()
             }
             
+    def _take_screenshot(self, event_type, event_details):
+        """
+        Ekran görüntüsü alır ve kaydeder
+        
+        Args:
+            event_type: Olay türü (keyboard, mouse_click)
+            event_details: Olay detayları
+            
+        Returns:
+            tuple: (ekran görüntüsü dosya yolu, dosya adı)
+        """
+        try:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"{event_type}_{timestamp}.png"
+            filepath = os.path.join(self.screenshot_dir, filename)
+            
+            print(f"Ekran görüntüsü alınıyor: {filepath}")
+            
+            # Ekran görüntüsü al
+            screenshot = ImageGrab.grab()
+            screenshot.save(filepath)
+            
+            print(f"Ekran görüntüsü başarıyla kaydedildi: {filepath}")
+            return filepath, filename
+        except Exception as e:
+            print(f"Ekran görüntüsü alınırken hata: {e}")
+            return None, None
+
     def _on_key_press(self, key):
         """Klavye tuşu basma olayını işler"""
         with self.lock:
-            # Son aktivite zamanını güncelle
-            self.last_input_time = datetime.datetime.now()
-            
-            # Aktif pencere bilgilerini kontrol et ve güncelle
-            window_title, application = self._get_active_window_info()
-            
-            # Klavye olayını kaydet
             try:
-                key_char = key.char if hasattr(key, 'char') else str(key)
-                # Bazı tuşlar özel kullanımlar için maskelenebilir
-                if key_char.isalnum():
-                    masked_key = key_char  # Alfanumerik tuşlar güvenli
-                else:
-                    masked_key = "[SPECIAL_KEY]"  # Özel tuşları maskeleyebiliriz
-                    
-                self.logger.log_user_event(
-                    window_title=window_title,
-                    application=application,
-                    event_type="keyboard",
-                    event_details=masked_key
-                )
-            except AttributeError:
-                # Özel tuşlar için
-                self.logger.log_user_event(
-                    window_title=window_title,
-                    application=application,
-                    event_type="keyboard",
-                    event_details="[SPECIAL_KEY]"
-                )
-                
-    def _on_mouse_click(self, x, y, button, pressed):
-        """Fare tıklama olayını işler"""
-        if pressed:  # Sadece basma olayını izle, bırakma olayını değil
-            with self.lock:
                 # Son aktivite zamanını güncelle
                 self.last_input_time = datetime.datetime.now()
                 
                 # Aktif pencere bilgilerini kontrol et ve güncelle
                 window_title, application = self._get_active_window_info()
                 
-                # Fare olayını kaydet
-                self.logger.log_user_event(
-                    window_title=window_title,
-                    application=application,
-                    event_type="mouse_click",
-                    event_details=f"button={button}, position=({x}, {y})"
-                )
+                print(f"Klavye olayı tespit edildi - Pencere: {window_title}, Uygulama: {application}")
                 
+                # Klavye olayını kaydet
+                try:
+                    key_char = key.char if hasattr(key, 'char') else str(key)
+                    # Bazı tuşlar özel kullanımlar için maskelenebilir
+                    if key_char.isalnum():
+                        masked_key = key_char  # Alfanumerik tuşlar güvenli
+                    else:
+                        masked_key = "[SPECIAL_KEY]"  # Özel tuşları maskeleyebiliriz
+                    
+                    # Ekran görüntüsü al
+                    screenshot_path, screenshot_filename = self._take_screenshot("keyboard", masked_key)
+                    
+                    print(f"Klavye olayı kaydediliyor: {masked_key}")
+                    self.logger.log_user_event(
+                        window_title=window_title,
+                        application=application,
+                        event_type="keyboard",
+                        event_details=masked_key,
+                        screenshot_path=screenshot_path,
+                        screenshot_filename=screenshot_filename
+                    )
+                    print("Klavye olayı başarıyla kaydedildi")
+                except AttributeError:
+                    # Özel tuşlar için
+                    screenshot_path, screenshot_filename = self._take_screenshot("keyboard", "[SPECIAL_KEY]")
+                    print("Özel tuş olayı kaydediliyor")
+                    self.logger.log_user_event(
+                        window_title=window_title,
+                        application=application,
+                        event_type="keyboard",
+                        event_details="[SPECIAL_KEY]",
+                        screenshot_path=screenshot_path,
+                        screenshot_filename=screenshot_filename
+                    )
+                    print("Özel tuş olayı başarıyla kaydedildi")
+            except Exception as e:
+                print(f"Klavye olayı işlenirken hata: {e}")
+                
+    def _on_mouse_click(self, x, y, button, pressed):
+        """Fare tıklama olayını işler"""
+        if pressed:  # Sadece basma olayını izle, bırakma olayını değil
+            with self.lock:
+                try:
+                    # Son aktivite zamanını güncelle
+                    self.last_input_time = datetime.datetime.now()
+                    
+                    # Aktif pencere bilgilerini kontrol et ve güncelle
+                    window_title, application = self._get_active_window_info()
+                    
+                    print(f"Fare tıklaması tespit edildi - Pencere: {window_title}, Uygulama: {application}")
+                    
+                    # Ekran görüntüsü al
+                    event_details = f"button={button}, position=({x}, {y})"
+                    screenshot_path, screenshot_filename = self._take_screenshot("mouse_click", event_details)
+                    
+                    print(f"Fare tıklaması kaydediliyor: {event_details}")
+                    # Fare olayını kaydet
+                    self.logger.log_user_event(
+                        window_title=window_title,
+                        application=application,
+                        event_type="mouse_click",
+                        event_details=event_details,
+                        screenshot_path=screenshot_path,
+                        screenshot_filename=screenshot_filename
+                    )
+                    print("Fare tıklaması başarıyla kaydedildi")
+                except Exception as e:
+                    print(f"Fare tıklaması işlenirken hata: {e}")
+
     def _check_active_window(self):
         """Belirli aralıklarla aktif pencere değişikliklerini kontrol eder"""
         while self.running:
