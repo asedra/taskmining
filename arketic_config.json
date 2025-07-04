@@ -1,0 +1,37 @@
+{
+  "database": {
+    "path": "data/arketic_activity.db"
+  },
+  "monitoring": {
+    "file_watch_paths": [
+      "~/Downloads",
+      "~/Documents",
+      "~/Desktop"
+    ],
+    "browser_check_interval": 10,
+    "report_generation_interval": 300
+  },
+  "reports": {
+    "output_dir": "data/reports",
+    "formats": ["json", "html", "csv"],
+    "daily_auto_generate": true,
+    "weekly_auto_generate": true
+  },
+  "automation": {
+    "min_sequence_frequency": 3,
+    "analysis_days": 7,
+    "threshold_app_usage_minutes": 30
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "data/arketic.log"
+  },
+  "ui": {
+    "language": "tr",
+    "theme": "default"
+  },
+  "privacy": {
+    "mask_sensitive_data": true,
+    "data_retention_days": 30
+  }
+}
