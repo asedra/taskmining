@@ -1,0 +1,36 @@
+{
+  "servers": [
+    {
+      "name": "jira",
+      "command": "node",
+      "args": ["./pm_assistant/mcp_servers/jira_server.js"],
+      "env": {
+        "JIRA_BASE_URL": "your-jira-instance.atlassian.net",
+        "JIRA_API_TOKEN": "your-api-token",
+        "JIRA_USERNAME": "your-email@domain.com"
+      }
+    },
+    {
+      "name": "notion",
+      "command": "python",
+      "args": ["./pm_assistant/mcp_servers/notion_server.py"],
+      "env": {
+        "NOTION_API_TOKEN": "your-notion-integration-token"
+      }
+    },
+    {
+      "name": "github",
+      "command": "node",
+      "args": ["./pm_assistant/mcp_servers/github_server.js"],
+      "env": {
+        "GITHUB_TOKEN": "your-github-token",
+        "GITHUB_OWNER": "your-github-username",
+        "GITHUB_REPO": "your-repository-name"
+      }
+    }
+  ],
+  "client": {
+    "name": "pm-assistant",
+    "version": "1.0.0"
+  }
+}
